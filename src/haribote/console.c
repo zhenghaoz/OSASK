@@ -436,201 +436,227 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	struct FILEHANDLE *fh;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
-	if (edx == 1) {
-		cons_putchar(cons, eax & 0xff, 1);
-	} else if (edx == 2) {
-		cons_putstr0(cons, (char *) ebx + ds_base);
-	} else if (edx == 3) {
-		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
-	} else if (edx == 4) {
-		return &(task->tss.esp0);
-	} else if (edx == 5) {
-		sht = sheet_alloc(shtctl);
-		sht->task = task;
-		sht->flags |= 0x10;
-		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
-		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
-		sheet_slide(sht, ((shtctl->xsize - esi) / 2) & ~3, (shtctl->ysize - edi) / 2);
-		sheet_updown(sht, shtctl->top); /*将窗口图层高度指定为当前鼠标所在图层的高度，鼠标移到上层*/
-		reg[7] = (int) sht;
-	} else if (edx == 6) {
-		sht = (struct SHEET *) (ebx & 0xfffffffe);
-		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
-		if ((ebx & 1) == 0) {
-			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
-		}
-	} else if (edx == 7) {
-		sht = (struct SHEET *) (ebx & 0xfffffffe);
-		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
-		if ((ebx & 1) == 0) {
-			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
-		}
-	} else if (edx == 8) {
-		memman_init((struct MEMMAN *) (ebx + ds_base));
-		ecx &= 0xfffffff0; /*以16字节为单位*/
-		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
-	} else if (edx == 9) {
-		ecx = (ecx + 0x0f) & 0xfffffff0; /*以16字节为单位进位取整*/
-		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
-	} else if (edx == 10) {
-		ecx = (ecx + 0x0f) & 0xfffffff0; /*以16字节为单位进位取整*/
-		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
-	} else if (edx == 11) {
-		sht = (struct SHEET *) (ebx & 0xfffffffe);
-		sht->buf[sht->bxsize * edi + esi] = eax;
-		if ((ebx & 1) == 0) {
-			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
-		}
-	} else if (edx == 12) {
-		sht = (struct SHEET *) ebx;
-		sheet_refresh(sht, eax, ecx, esi, edi);
-	} else if (edx == 13) {
-		sht = (struct SHEET *) (ebx & 0xfffffffe);
-		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
-		if ((ebx & 1) == 0) {
-			if (eax > esi) {
-				i = eax;
-				eax = esi;
-				esi = i;
+	switch (edx) {
+		case 1:
+			cons_putchar(cons, eax & 0xff, 1);
+			break;
+		case 2:
+			cons_putstr0(cons, (char *) ebx + ds_base);
+			break;
+		case 3:
+			cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+			break;
+		case 4:
+			return &(task->tss.esp0);
+		case 5:
+			sht = sheet_alloc(shtctl);
+			sht->task = task;
+			sht->flags |= 0x10;
+			sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+			make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+			sheet_slide(sht, ((shtctl->xsize - esi) / 2) & ~3, (shtctl->ysize - edi) / 2);
+			sheet_updown(sht, shtctl->top); /*将窗口图层高度指定为当前鼠标所在图层的高度，鼠标移到上层*/
+			reg[7] = (int) sht;
+			break;
+		case 6:
+			sht = (struct SHEET *) (ebx & 0xfffffffe);
+			putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+			if ((ebx & 1) == 0) {
+				sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
 			}
-			if (ecx > edi) {
-				i = ecx;
-				ecx = edi;
-				edi = i;
+			break;
+		case 7:
+			sht = (struct SHEET *) (ebx & 0xfffffffe);
+			boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+			if ((ebx & 1) == 0) {
+				sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
 			}
-			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
-		}
-	} else if (edx == 14) {
-		sheet_free((struct SHEET *) ebx);
-	} else if (edx == 15) {
-		for (;;) {
-			io_cli();
-			if (fifo32_status(&task->fifo) == 0) {
-				if (eax != 0) {
-					task_sleep(task); /* FIFO为空，休眠并等待*/
-				} else {
+			break;
+		case 8:
+			memman_init((struct MEMMAN *) (ebx + ds_base));
+			ecx &= 0xfffffff0; /*以16字节为单位*/
+			memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+			break;
+		case 9:
+			ecx = (ecx + 0x0f) & 0xfffffff0; /*以16字节为单位进位取整*/
+			reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+			break;
+		case 10:
+			ecx = (ecx + 0x0f) & 0xfffffff0; /*以16字节为单位进位取整*/
+			memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+			break;
+		case 11:
+			sht = (struct SHEET *) (ebx & 0xfffffffe);
+			sht->buf[sht->bxsize * edi + esi] = eax;
+			if ((ebx & 1) == 0) {
+				sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+			}
+			break;
+		case 12:
+			sht = (struct SHEET *) ebx;
+			sheet_refresh(sht, eax, ecx, esi, edi);
+			break;
+		case 13:
+			sht = (struct SHEET *) (ebx & 0xfffffffe);
+			hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+			if ((ebx & 1) == 0) {
+				if (eax > esi) {
+					i = eax;
+					eax = esi;
+					esi = i;
+				}
+				if (ecx > edi) {
+					i = ecx;
+					ecx = edi;
+					edi = i;
+				}
+				sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+			}
+			break;
+		case 14:
+			sheet_free((struct SHEET *) ebx);
+			break;
+		case 15:
+			for (;;) {
+				io_cli();
+				if (fifo32_status(&task->fifo) == 0) {
+					if (eax != 0) {
+						task_sleep(task); /* FIFO为空，休眠并等待*/
+					} else {
+						io_sti();
+						reg[7] = -1;
+						return 0;
+					}
+				}
+				i = fifo32_get(&task->fifo);
+				io_sti();
+				if (i <= 1) { /*光标用定时器*/
+					/*应用程序运行时不需要显示光标，因此总是将下次显示用的值置为1*/
+					timer_init(cons->timer, &task->fifo, 1); /*下次置为1*/
+					timer_settime(cons->timer, 50);
+				}
+				if (i == 2) { /*光标ON */
+					cons->cur_c = COL8_FFFFFF;
+				}
+				if (i == 3) { /*光标OFF */
+					cons->cur_c = -1;
+				}
+				if (i == 4) { /*只关闭命令行窗口*/
+					timer_cancel(cons->timer);
+					io_cli();
+					fifo32_put(sys_fifo, cons->sht - shtctl->sheets0 + 2024); /*2024～2279*/
+					cons->sht = 0;
 					io_sti();
-					reg[7] = -1;
+				}
+				if (i >= 256) { /*键盘数据（通过任务A）等*/
+					reg[7] = i - 256;
 					return 0;
 				}
 			}
-			i = fifo32_get(&task->fifo);
-			io_sti();
-			if (i <= 1) { /*光标用定时器*/
-				/*应用程序运行时不需要显示光标，因此总是将下次显示用的值置为1*/
-				timer_init(cons->timer, &task->fifo, 1); /*下次置为1*/
-				timer_settime(cons->timer, 50);
+			break;
+		case 16:
+			reg[7] = (int) timer_alloc();
+			((struct TIMER *) reg[7])->flags2 = 1; /*允许自动取消*/
+			break;
+		case 17:
+			timer_init((struct TIMER *) ebx, &task->fifo, eax + 256);
+			break;
+		case 18:
+			timer_settime((struct TIMER *) ebx, eax);
+			break;
+		case 19:
+			timer_free((struct TIMER *) ebx);
+			break;
+		case 20:
+			if (eax == 0) {
+				i = io_in8(0x61);
+				io_out8(0x61, i & 0x0d);
+			} else {
+				i = 1193180000 / eax;
+				io_out8(0x43, 0xb6);
+				io_out8(0x42, i & 0xff);
+				io_out8(0x42, i >> 8);
+				i = io_in8(0x61);
+				io_out8(0x61, (i | 0x03) & 0x0f);
 			}
-			if (i == 2) { /*光标ON */
-				cons->cur_c = COL8_FFFFFF;
+			break;
+		case 21:
+			for (i = 0; i < 8; i++) {
+				if (task->fhandle[i].buf == 0) {
+					break;
+				}
 			}
-			if (i == 3) { /*光标OFF */
-				cons->cur_c = -1;
+			fh = &task->fhandle[i];
+			reg[7] = 0;
+			if (i < 8) {
+				finfo = file_search((char *) ebx + ds_base,
+						(struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+				if (finfo != 0) {
+					reg[7] = (int) fh;
+					fh->size = finfo->size;
+					fh->pos = 0;
+					fh->buf = file_loadfile2(finfo->clustno, &fh->size, task->fat);
+				}
 			}
-			if (i == 4) { /*只关闭命令行窗口*/
-				timer_cancel(cons->timer);
-				io_cli();
-				fifo32_put(sys_fifo, cons->sht - shtctl->sheets0 + 2024); /*2024～2279*/
-				cons->sht = 0;
-				io_sti();
+			break;
+		case 22:
+			fh = (struct FILEHANDLE *) eax;
+			memman_free_4k(memman, (int) fh->buf, fh->size);
+			fh->buf = 0;
+			break;
+		case 23:
+			fh = (struct FILEHANDLE *) eax;
+			if (ecx == 0) {
+				fh->pos = ebx;
+			} else if (ecx == 1) {
+				fh->pos += ebx;
+			} else if (ecx == 2) {
+				fh->pos = fh->size + ebx;
 			}
-			if (i >= 256) { /*键盘数据（通过任务A）等*/
-				reg[7] = i - 256;
-				return 0;
-			}
-		}
-	} else if (edx == 16) {
-		reg[7] = (int) timer_alloc();
-		((struct TIMER *) reg[7])->flags2 = 1; /*允许自动取消*/
-	} else if (edx == 17) {
-		timer_init((struct TIMER *) ebx, &task->fifo, eax + 256);
-	} else if (edx == 18) {
-		timer_settime((struct TIMER *) ebx, eax);
-	} else if (edx == 19) {
-		timer_free((struct TIMER *) ebx);
-	} else if (edx == 20) {
-		if (eax == 0) {
-			i = io_in8(0x61);
-			io_out8(0x61, i & 0x0d);
-		} else {
-			i = 1193180000 / eax;
-			io_out8(0x43, 0xb6);
-			io_out8(0x42, i & 0xff);
-			io_out8(0x42, i >> 8);
-			i = io_in8(0x61);
-			io_out8(0x61, (i | 0x03) & 0x0f);
-		}
-	} else if (edx == 21) {
-		for (i = 0; i < 8; i++) {
-			if (task->fhandle[i].buf == 0) {
-				break;
-			}
-		}
-		fh = &task->fhandle[i];
-		reg[7] = 0;
-		if (i < 8) {
-			finfo = file_search((char *) ebx + ds_base,
-					(struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
-			if (finfo != 0) {
-				reg[7] = (int) fh;
-				fh->size = finfo->size;
+			if (fh->pos < 0) {
 				fh->pos = 0;
-				fh->buf = file_loadfile2(finfo->clustno, &fh->size, task->fat);
 			}
-		}
-	} else if (edx == 22) {
-		fh = (struct FILEHANDLE *) eax;
-		memman_free_4k(memman, (int) fh->buf, fh->size);
-		fh->buf = 0;
-	} else if (edx == 23) {
-		fh = (struct FILEHANDLE *) eax;
-		if (ecx == 0) {
-			fh->pos = ebx;
-		} else if (ecx == 1) {
-			fh->pos += ebx;
-		} else if (ecx == 2) {
-			fh->pos = fh->size + ebx;
-		}
-		if (fh->pos < 0) {
-			fh->pos = 0;
-		}
-		if (fh->pos > fh->size) {
-			fh->pos = fh->size;
-		}
-	} else if (edx == 24) {
-		fh = (struct FILEHANDLE *) eax;
-		if (ecx == 0) {
-			reg[7] = fh->size;
-		} else if (ecx == 1) {
-			reg[7] = fh->pos;
-		} else if (ecx == 2) {
-			reg[7] = fh->pos - fh->size;
-		}
-	} else if (edx == 25) {
-		fh = (struct FILEHANDLE *) eax;
-		for (i = 0; i < ecx; i++) {
-			if (fh->pos == fh->size) {
-				break;
+			if (fh->pos > fh->size) {
+				fh->pos = fh->size;
 			}
-			*((char *) ebx + ds_base + i) = fh->buf[fh->pos];
-			fh->pos++;
-		}
-		reg[7] = i;
-	} else if (edx == 26) {
-		i = 0;
-		for (;;) {
-			*((char *) ebx + ds_base + i) =  task->cmdline[i];
-			if (task->cmdline[i] == 0) {
-				break;
+			break;
+		case 24:
+			fh = (struct FILEHANDLE *) eax;
+			if (ecx == 0) {
+				reg[7] = fh->size;
+			} else if (ecx == 1) {
+				reg[7] = fh->pos;
+			} else if (ecx == 2) {
+				reg[7] = fh->pos - fh->size;
 			}
-			if (i >= ecx) {
-				break;
+			break;
+		case 25:
+			fh = (struct FILEHANDLE *) eax;
+			for (i = 0; i < ecx; i++) {
+				if (fh->pos == fh->size) {
+					break;
+				}
+				*((char *) ebx + ds_base + i) = fh->buf[fh->pos];
+				fh->pos++;
 			}
-			i++;
-		}
-		reg[7] = i;
-	} else if (edx == 27) {
-		reg[7] = task->langmode;
+			reg[7] = i;
+			break;
+		case 26:
+			i = 0;
+			for (;;) {
+				*((char *) ebx + ds_base + i) =  task->cmdline[i];
+				if (task->cmdline[i] == 0) {
+					break;
+				}
+				if (i >= ecx) {
+					break;
+				}
+				i++;
+			}
+			reg[7] = i;
+			break;
+		case 27:
+			reg[7] = task->langmode;
 	}
 	return 0;
 }
