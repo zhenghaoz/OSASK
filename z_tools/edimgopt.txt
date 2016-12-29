@@ -1,0 +1,5 @@
+opt imgin:../tool/osa_qemu/osaimgqe.bin
+copy from:../tool/OSASK0.PSF to:@:
+copy from:../tool/!built.bin to:@:
+
+opt imgout:../tool/qemu/fdimage0.bin
