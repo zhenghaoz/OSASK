@@ -427,6 +427,7 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 #define RTC_MONTH 			0x08
 #define RTC_YEAR			0x09
 #define RTC_CENTURY			0x32
+#define RTC_REG_A			0x0A
 #define RTC_REG_B			0x0b
 
 int get_rtc_register(char address)
@@ -679,6 +680,8 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 			reg[7] = task->langmode;
 			break;
 		case 28:
+			// Make sure an update isn't in progress
+			while (get_rtc_register(RTC_REG_A) & 0x80);
 			i = get_rtc_register(eax);
 			// Convert BCD to binary values if necessary
 			j = get_rtc_register(RTC_REG_B);
