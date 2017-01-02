@@ -419,6 +419,26 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 	return 0;
 }
 
+#define RTC_SECOND			0x00
+#define RTC_MINUTE			0x02
+#define RTC_HOURS			0x04
+#define RTC_WEEKDAY			0x06
+#define RTC_DAY_OF_MONTH	0x07
+#define RTC_MONTH 			0x08
+#define RTC_YEAR			0x09
+#define RTC_CENTURY			0x32
+#define RTC_REG_B			0x0b
+
+int get_rtc_register(char address)
+{
+	int value = 0;
+	io_cli();
+	io_out8(0x70, address);
+	value = io_in8(0x71);
+	io_sti();
+	return value;
+}
+
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
 {
 	struct TASK *task = task_now();
@@ -431,7 +451,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	/*强行改写通过PUSHAD保存的值*/
 		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
 		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
-	int i;
+	int i, j;
 	struct FILEINFO *finfo;
 	struct FILEHANDLE *fh;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
@@ -657,6 +677,17 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 			break;
 		case 27:
 			reg[7] = task->langmode;
+			break;
+		case 28:
+			i = get_rtc_register(eax);
+			// Convert BCD to binary values if necessary
+			j = get_rtc_register(RTC_REG_B);
+			if (!(j & 0x04)) 
+				i = (i & 0x0F) + ((i / 16) * 10);
+			// Convert 12 hour clock to 24 hour clock if necessary
+			if (eax == RTC_HOURS && !(j & 0x02) && (i & 0x80))
+				i = ((i & 0x7F) + 12) % 24;
+			reg[7] = i;
 	}
 	return 0;
 }
